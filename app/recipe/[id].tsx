@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { useAppStore } from '../../lib/store';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING } from '../../lib/theme';
-import type { Recipe, Ingredient } from '../../lib/types';
 import { RECIPES } from '../../data/recipes';
+import type { Recipe, Ingredient } from '../../lib/types';
 
 function ingredientLine(ing: Ingredient): string {
   const unitMap: Record<string, string> = {
@@ -27,7 +27,23 @@ function macroBadge(label: string, value: number, unit: string, color: string) {
 }
 
 export default function RecipeDetailScreen() {
-  return null;
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const recipe = RECIPES.find((r) => r.id === id);
+
+  if (!recipe) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl }}>
+        <Text style={{ fontSize: 48, marginBottom: SPACING.lg }}>🔍</Text>
+        <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm }}>Rezept nicht gefunden</Text>
+        <Pressable onPress={() => router.back()} style={{ backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>Zurück</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return <RecipeDetail recipe={recipe} />;
 }
 
 export function RecipeDetail({ recipe }: { recipe: Recipe }) {

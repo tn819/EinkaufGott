@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAppStore } from '../../lib/store';
 import { generateMealPlan } from '../../lib/meals/generator';
 import { COLORS, SPACING } from '../../lib/theme';
@@ -25,12 +26,13 @@ function MacroPill({ label, value, unit, color }: { label: string; value: number
 
 function MealCard({ slot, onPress }: { slot: MealSlot; onPress: () => void }) {
   const dietEmoji: Record<string, string> = { omnivore: '🥩', vegetarian: '🥗', vegan: '🌱' };
+  const cookTimeColor = slot.recipe.totalTime <= 15 ? '#2E7D32' : slot.recipe.totalTime <= 30 ? '#FF6F00' : '#D32F2F';
   return (
     <Pressable onPress={onPress} style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs }}>
         <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>⏱ {slot.recipe.totalTime}min</Text>
+          <Text style={{ fontSize: 12, color: cookTimeColor, fontWeight: '600' }}>⏱ {slot.recipe.totalTime}min</Text>
           <Text style={{ fontSize: 12 }}>{dietEmoji[slot.recipe.diet] ?? ''}</Text>
         </View>
       </View>
@@ -45,7 +47,7 @@ function MealCard({ slot, onPress }: { slot: MealSlot; onPress: () => void }) {
   );
 }
 
-function DaySection({ day, index }: { day: DayPlan; index: number }) {
+function DaySection({ day, index, onMealPress }: { day: DayPlan; index: number; onMealPress: (recipeId: string) => void }) {
   return (
     <View style={{ marginBottom: SPACING.lg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
@@ -66,7 +68,7 @@ function DaySection({ day, index }: { day: DayPlan; index: number }) {
         <Text style={{ fontSize: 14, color: COLORS.muted, textAlign: 'center', padding: SPACING.lg }}>Keine Mahlzeiten</Text>
       ) : (
         day.meals.map((slot) => (
-          <MealCard key={`${day.date}-${slot.type}`} slot={slot} onPress={() => {}} />
+          <MealCard key={`${day.date}-${slot.type}`} slot={slot} onPress={() => onMealPress(slot.recipe.id)} />
         ))
       )}
     </View>
@@ -75,10 +77,15 @@ function DaySection({ day, index }: { day: DayPlan; index: number }) {
 
 export default function HomeScreen() {
   const { currentPlan, macroTarget, setCurrentPlan } = useAppStore();
+  const router = useRouter();
 
   const handleGenerate = () => {
     const plan = generateMealPlan(macroTarget);
     setCurrentPlan(plan);
+  };
+
+  const handleMealPress = (recipeId: string) => {
+    router.push(`/recipe/${recipeId}`);
   };
 
   if (!currentPlan) {
@@ -131,7 +138,7 @@ export default function HomeScreen() {
       </View>
 
       {currentPlan.days.map((day, i) => (
-        <DaySection key={day.date} day={day} index={i} />
+        <DaySection key={day.date} day={day} index={i} onMealPress={handleMealPress} />
       ))}
     </ScrollView>
   );
