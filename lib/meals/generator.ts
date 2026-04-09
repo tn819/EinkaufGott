@@ -1,5 +1,5 @@
-import type { Recipe, MacroTarget, MealPlan, DayPlan, MealSlot, MacrosPerServing } from './types';
-import { RECIPES } from '../data/recipes';
+import type { Recipe, MacroTarget, MealPlan, DayPlan, MealSlot, MacrosPerServing } from '../types';
+import { RECIPES } from '../../data/recipes';
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 10);

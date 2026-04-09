@@ -1,0 +1,138 @@
+import React from 'react';
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useAppStore } from '../../lib/store';
+import { generateMealPlan } from '../../lib/meals/generator';
+import { COLORS, SPACING } from '../../lib/theme';
+import type { DayPlan, MealSlot } from '../../lib/types';
+
+const DAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const MEAL_LABELS: Record<string, string> = {
+  breakfast: 'Frühstück',
+  lunch: 'Mittag',
+  dinner: 'Abend',
+  snack: 'Snack',
+};
+
+function MacroPill({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) {
+  return (
+    <View style={{ alignItems: 'center', flex: 1 }}>
+      <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>{label}</Text>
+      <Text style={{ fontSize: 16, fontWeight: '700', color }}>{Math.round(value)}</Text>
+      <Text style={{ fontSize: 10, color: COLORS.muted }}>{unit}</Text>
+    </View>
+  );
+}
+
+function MealCard({ slot, onPress }: { slot: MealSlot; onPress: () => void }) {
+  const dietEmoji: Record<string, string> = { omnivore: '🥩', vegetarian: '🥗', vegan: '🌱' };
+  return (
+    <Pressable onPress={onPress} style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs }}>
+        <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>⏱ {slot.recipe.totalTime}min</Text>
+          <Text style={{ fontSize: 12 }}>{dietEmoji[slot.recipe.diet] ?? ''}</Text>
+        </View>
+      </View>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs }}>{slot.recipe.titleDe}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <MacroPill label="Kcal" value={slot.scaledMacros.calories} unit="kcal" color={COLORS.text} />
+        <MacroPill label="P" value={slot.scaledMacros.protein} unit="g" color={COLORS.protein} />
+        <MacroPill label="K" value={slot.scaledMacros.carbs} unit="g" color={COLORS.carbs} />
+        <MacroPill label="F" value={slot.scaledMacros.fat} unit="g" color={COLORS.fat} />
+      </View>
+    </Pressable>
+  );
+}
+
+function DaySection({ day, index }: { day: DayPlan; index: number }) {
+  return (
+    <View style={{ marginBottom: SPACING.lg }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+          <View style={{ backgroundColor: COLORS.primary, borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>{DAY_NAMES[index] ?? '?'}</Text>
+          </View>
+          <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{day.date}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+          <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{Math.round(day.totalMacros.calories)} kcal</Text>
+          <Text style={{ fontSize: 12, color: COLORS.protein }}>P {Math.round(day.totalMacros.protein)}g</Text>
+          <Text style={{ fontSize: 12, color: COLORS.carbs }}>K {Math.round(day.totalMacros.carbs)}g</Text>
+          <Text style={{ fontSize: 12, color: COLORS.fat }}>F {Math.round(day.totalMacros.fat)}g</Text>
+        </View>
+      </View>
+      {day.meals.length === 0 ? (
+        <Text style={{ fontSize: 14, color: COLORS.muted, textAlign: 'center', padding: SPACING.lg }}>Keine Mahlzeiten</Text>
+      ) : (
+        day.meals.map((slot) => (
+          <MealCard key={`${day.date}-${slot.type}`} slot={slot} onPress={() => {}} />
+        ))
+      )}
+    </View>
+  );
+}
+
+export default function HomeScreen() {
+  const { currentPlan, macroTarget, setCurrentPlan } = useAppStore();
+
+  const handleGenerate = () => {
+    const plan = generateMealPlan(macroTarget);
+    setCurrentPlan(plan);
+  };
+
+  if (!currentPlan) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl }}>
+        <Text style={{ fontSize: 48, marginBottom: SPACING.lg }}>🍽️</Text>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm }}>Kein Plan vorhanden</Text>
+        <Text style={{ fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: SPACING.xl, lineHeight: 20 }}>
+          Stelle deine Makros ein und generiere deinen Wochenplan.
+        </Text>
+        <Pressable onPress={handleGenerate} style={{ backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>Plan erstellen</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const weekTotals = currentPlan.days.reduce(
+    (acc, d) => ({
+      calories: acc.calories + d.totalMacros.calories,
+      protein: acc.protein + d.totalMacros.protein,
+      carbs: acc.carbs + d.totalMacros.carbs,
+      fat: acc.fat + d.totalMacros.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+
+  const avgCal = Math.round(weekTotals.calories / 7);
+  const avgP = Math.round(weekTotals.protein / 7);
+  const avgC = Math.round(weekTotals.carbs / 7);
+  const avgF = Math.round(weekTotals.fat / 7);
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.text }}>Dein Plan</Text>
+        <Pressable onPress={handleGenerate} style={{ backgroundColor: COLORS.primaryLight, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.primary }}>🔄 Neu</Text>
+        </Pressable>
+      </View>
+
+      <View style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
+        <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.sm }}>Ø pro Tag</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+          <MacroPill label="Kcal" value={avgCal} unit="" color={COLORS.text} />
+          <MacroPill label="Protein" value={avgP} unit="g" color={COLORS.protein} />
+          <MacroPill label="Carbs" value={avgC} unit="g" color={COLORS.carbs} />
+          <MacroPill label="Fett" value={avgF} unit="g" color={COLORS.fat} />
+        </View>
+      </View>
+
+      {currentPlan.days.map((day, i) => (
+        <DaySection key={day.date} day={day} index={i} />
+      ))}
+    </ScrollView>
+  );
+}

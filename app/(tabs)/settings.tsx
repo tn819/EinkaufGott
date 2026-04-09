@@ -79,7 +79,7 @@ export default function SettingsScreen() {
 
       <View style={{ backgroundColor: COLORS.card, borderRadius: 16, padding: SPACING.lg, marginBottom: SPACING.lg }}>
         <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.md }}>Mahlzeiten pro Tag</Text>
-        <Stepper value={local.mealsPerDay} onChange={(v) => update({ mealsPerDay: v })} step={1} min={1} max={5} />
+        <Stepper value={local.mealsPerDay} onChange={(v) => update({ mealsPerDay: Math.min(5, v) })} step={1} min={1} />
       </View>
 
       <View style={{ backgroundColor: COLORS.card, borderRadius: 16, padding: SPACING.lg, marginBottom: SPACING.xl }}>
