@@ -152,3 +152,94 @@ export function generateMealPlan(target: MacroTarget, startDate?: string): MealP
     days,
   };
 }
+
+export function findAlternatives(
+  dayPlan: DayPlan,
+  mealIndex: number,
+  target: MacroTarget,
+  allRecipes: Recipe[] = RECIPES,
+): Recipe[] {
+  const meal = dayPlan.meals[mealIndex];
+  if (!meal) return [];
+
+  const targetMacros = meal.scaledMacros;
+  const candidates = getRecipesForDietAndTime(allRecipes, target.diet, target.maxCookTime, meal.type);
+
+  return candidates
+    .filter((r) => r.id !== meal.recipe.id)
+    .map((r) => {
+      const idealFactor = targetMacros.calories / r.macros.calories;
+      const factor = Math.max(0.5, Math.min(2.0, idealFactor));
+      const scaled = scaleMacros(r.macros, factor);
+      const distance = macroDistance(scaled, targetMacros);
+      return { recipe: r, distance };
+    })
+    .filter((entry) => {
+      const distance = entry.distance;
+      const maxAllowed = 0.6;
+      return distance <= maxAllowed;
+    })
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 5)
+    .map((entry) => entry.recipe);
+}
+
+export function swapMeal(
+  plan: MealPlan,
+  dayIndex: number,
+  mealIndex: number,
+  newRecipe: Recipe,
+): MealPlan {
+  const target = plan.macroTarget;
+  const mealSlots: { type: string; fraction: number }[] = [];
+
+  if (target.mealsPerDay <= 1) {
+    mealSlots.push({ type: 'dinner', fraction: 1.0 });
+  } else if (target.mealsPerDay === 2) {
+    mealSlots.push({ type: 'lunch', fraction: 0.4 }, { type: 'dinner', fraction: 0.6 });
+  } else if (target.mealsPerDay === 3) {
+    mealSlots.push({ type: 'breakfast', fraction: 0.25 }, { type: 'lunch', fraction: 0.35 }, { type: 'dinner', fraction: 0.4 });
+  } else if (target.mealsPerDay === 4) {
+    mealSlots.push({ type: 'breakfast', fraction: 0.2 }, { type: 'lunch', fraction: 0.3 }, { type: 'dinner', fraction: 0.35 }, { type: 'snack', fraction: 0.15 });
+  } else {
+    mealSlots.push({ type: 'breakfast', fraction: 0.2 }, { type: 'lunch', fraction: 0.25 }, { type: 'dinner', fraction: 0.35 }, { type: 'snack', fraction: 0.1 }, { type: 'snack', fraction: 0.1 });
+  }
+
+  const oldMeal = plan.days[dayIndex].meals[mealIndex];
+  const slotTarget: MacrosPerServing = {
+    calories: Math.round(target.calories * (mealSlots[mealIndex]?.fraction ?? 0.3)),
+    protein: Math.round(target.protein * (mealSlots[mealIndex]?.fraction ?? 0.3) * 10) / 10,
+    carbs: Math.round(target.carbs * (mealSlots[mealIndex]?.fraction ?? 0.3) * 10) / 10,
+    fat: Math.round(target.fat * (mealSlots[mealIndex]?.fraction ?? 0.3) * 10) / 10,
+  };
+
+  const idealFactor = slotTarget.calories / newRecipe.macros.calories;
+  const factor = Math.max(0.5, Math.min(2.0, idealFactor));
+  const scaledMacros = scaleMacros(newRecipe.macros, factor);
+  const scaledServings = Math.round(factor * newRecipe.servings * 10) / 10;
+
+  const newDays = plan.days.map((day, di) => {
+    if (di !== dayIndex) return day;
+
+    const newMeals = day.meals.map((m, mi) => {
+      if (mi !== mealIndex) return m;
+      return {
+        ...m,
+        recipe: newRecipe,
+        scaledServings,
+        scaledMacros,
+      };
+    });
+
+    return {
+      ...day,
+      meals: newMeals,
+      totalMacros: sumMacros(newMeals.map((m) => m.scaledMacros)),
+    };
+  });
+
+  return {
+    ...plan,
+    days: newDays,
+  };
+}

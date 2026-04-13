@@ -1,4 +1,5 @@
-import { ingredientToReweQuery, buildReweCheckoutUrl, searchReweProduct } from '../lib/rewe/products';
+import { ingredientToReweQuery, buildReweCheckoutUrl, matchIngredientToReweSearch } from '../lib/rewe/products';
+import { RECIPES } from '../data/recipes';
 
 describe('ingredientToReweQuery', () => {
   it('returns reweSearchTerm when available', () => {
@@ -58,6 +59,28 @@ describe('ingredientToReweQuery', () => {
   });
 });
 
+describe('matchIngredientToReweSearch', () => {
+  it('returns mapped term for known ingredients', () => {
+    const recipe = RECIPES.find((r) => r.ingredients.some((i) => i.name === 'Hähnchenbrust'));
+    if (recipe) {
+      const ingredient = recipe.ingredients.find((i) => i.name === 'Hähnchenbrust')!;
+      const result = matchIngredientToReweSearch(ingredient);
+      expect(result).toBe('Hähnchenbrustfilet');
+    }
+  });
+
+  it('returns original name for unmapped ingredients', () => {
+    const ingredient = {
+      name: 'Trüffelöl',
+      nameEn: 'truffle oil',
+      amount: 10,
+      unit: 'ml' as const,
+      category: 'öle_fette' as const,
+    };
+    expect(matchIngredientToReweSearch(ingredient)).toBe('Trüffelöl');
+  });
+});
+
 describe('buildReweCheckoutUrl', () => {
   it('builds checkout URL with product IDs and quantities', () => {
     const url = buildReweCheckoutUrl([
@@ -78,10 +101,21 @@ describe('buildReweCheckoutUrl', () => {
     const url = buildReweCheckoutUrl([]);
     expect(url).toBe('https://shop.rewe.de/cart?items=');
   });
+
+  it('URL structure is valid for all seed recipe ingredients', () => {
+    for (const recipe of RECIPES) {
+      for (const ingredient of recipe.ingredients) {
+        const query = ingredientToReweQuery(ingredient);
+        expect(query.length).toBeGreaterThan(0);
+        expect(query).not.toContain('/');
+      }
+    }
+  });
 });
 
 describe('searchReweProduct', () => {
-  it('returns empty array on network error', async () => {
+  it('returns empty array on network error without throwing', async () => {
+    const { searchReweProduct } = require('../lib/rewe/products');
     const results = await searchReweProduct('Hähnchenbrust');
     expect(Array.isArray(results)).toBe(true);
   });

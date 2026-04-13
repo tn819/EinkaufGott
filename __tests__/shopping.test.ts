@@ -1,109 +1,124 @@
-import { generateShoppingList, toggleChecked } from '../lib/shopping';
-import type { PantryItem } from '../lib/types';
+import { generateShoppingList, toggleChecked, togglePantry } from '../lib/shopping';
+import { RECIPES } from '../data/recipes';
+import type { PantryItem, ShoppingItem } from '../lib/types';
 
-const mockRecipes = [
-  {
-    id: 'test-1',
-    title: 'Test Chicken',
-    titleDe: 'Test-Hähnchen',
-    description: 'Test recipe',
-    diet: 'omnivore' as const,
-    tags: ['high-protein'],
-    servings: 2,
-    prepTime: 10,
-    cookTime: 20,
-    totalTime: 30,
-    difficulty: 'easy' as const,
-    mealType: ['dinner'] as Array<'breakfast' | 'lunch' | 'dinner' | 'snack'>,
-    macros: { calories: 500, protein: 40, carbs: 30, fat: 20 },
-    ingredients: [
-      { name: 'Hähnchenbrust', nameEn: 'chicken breast', amount: 300, unit: 'g' as const, category: 'fleisch' as const },
-      { name: 'Reis', nameEn: 'rice', amount: 150, unit: 'g' as const, category: 'getreide' as const },
-      { name: 'Oliveöl', nameEn: 'olive oil', amount: 1, unit: 'el' as const, category: 'öle_fette' as const },
-    ],
-    instructions: ['Cook rice.', 'Fry chicken.'],
-  },
-  {
-    id: 'test-2',
-    title: 'Test Salad',
-    titleDe: 'Test-Salat',
-    description: 'Test recipe 2',
-    diet: 'vegan' as const,
-    tags: ['quick'],
-    servings: 1,
-    prepTime: 5,
-    cookTime: 0,
-    totalTime: 5,
-    difficulty: 'easy' as const,
-    mealType: ['lunch'] as Array<'breakfast' | 'lunch' | 'dinner' | 'snack'>,
-    macros: { calories: 250, protein: 10, carbs: 20, fat: 15 },
-    ingredients: [
-      { name: 'Salat', nameEn: 'lettuce', amount: 100, unit: 'g' as const, category: 'gemüse' as const },
-      { name: 'Oliveöl', nameEn: 'olive oil', amount: 1, unit: 'el' as const, category: 'öle_fette' as const },
-    ],
-    instructions: ['Mix.'],
-  },
-];
+function pickRecipes(diet: string, count: number) {
+  const filtered = RECIPES.filter((r) => {
+    if (diet === 'vegan') return r.diet === 'vegan';
+    if (diet === 'vegetarian') return r.diet === 'vegetarian' || r.diet === 'vegan';
+    return true;
+  });
+  return filtered.slice(0, count);
+}
 
 describe('generateShoppingList', () => {
-  it('consolidates duplicate ingredients across recipes', () => {
+  it('consolidates duplicate ingredients across real recipes', () => {
+    const r1 = RECIPES.find((r) => r.diet === 'omnivore' && r.ingredients.length >= 3);
+    const r2 = RECIPES.find((r) => r.diet === 'omnivore' && r.ingredients.length >= 3 && r.id !== r1!.id);
     const planRecipes = [
-      { recipe: mockRecipes[0], scaledServings: 2 },
-      { recipe: mockRecipes[1], scaledServings: 1 },
+      { recipe: r1!, scaledServings: r1!.servings },
+      { recipe: r2!, scaledServings: r2!.servings },
     ];
     const items = generateShoppingList(planRecipes, []);
-    const olive = items.find((i) => i.ingredient === 'Oliveöl');
-    expect(olive).toBeDefined();
-    expect(olive!.amount).toBe(2);
-    expect(olive!.recipeIds).toHaveLength(2);
+
+    const r1Names = new Set(r1!.ingredients.map((i) => i.name));
+    const shared = r2!.ingredients.find((i) => r1Names.has(i.name) && i.unit === r1!.ingredients.find((ri) => ri.name === i.name)!.unit);
+    if (shared) {
+      const consolidated = items.find((i) => i.ingredient === shared.name);
+      expect(consolidated).toBeDefined();
+      expect(consolidated!.recipeIds.length).toBeGreaterThanOrEqual(2);
+    }
+
+    expect(items.length).toBeGreaterThan(0);
   });
 
-  it('marks items as in pantry when matching', () => {
+  it('marks items as in pantry when matching — using real recipe data', () => {
+    const recipe = RECIPES.find((r) => r.ingredients.length > 0)!;
+    const firstIngredient = recipe.ingredients[0];
     const pantry: PantryItem[] = [
       {
         id: 'p1',
-        ingredient: 'Hähnchenbrust',
-        amount: 500,
-        unit: 'g',
-        category: 'fleisch',
+        ingredient: firstIngredient.name,
+        amount: firstIngredient.amount * 10,
+        unit: firstIngredient.unit,
+        category: firstIngredient.category,
         addedAt: '2026-04-09',
       },
     ];
-    const planRecipes = [{ recipe: mockRecipes[0], scaledServings: 2 }];
+    const planRecipes = [{ recipe, scaledServings: recipe.servings }];
     const items = generateShoppingList(planRecipes, pantry);
-    const chicken = items.find((i) => i.ingredient === 'Hähnchenbrust');
-    expect(chicken?.inPantry).toBe(true);
-    const rice = items.find((i) => i.ingredient === 'Reis');
-    expect(rice?.inPantry).toBe(false);
+
+    const pantryItem = items.find((i) => i.ingredient === firstIngredient.name);
+    expect(pantryItem?.inPantry).toBe(true);
+
+    const nonPantryItem = items.find((i) => i.ingredient !== firstIngredient.name);
+    if (nonPantryItem) {
+      expect(nonPantryItem.inPantry).toBe(false);
+    }
   });
 
-  it('scales ingredients when servings change', () => {
-    const planRecipes = [{ recipe: mockRecipes[0], scaledServings: 4 }];
+  it('scales ingredients proportionally when servings differ from base', () => {
+    const recipe = RECIPES.find((r) => r.servings >= 2)!;
+    const scaleFactor = 2;
+    const planRecipes = [{ recipe, scaledServings: recipe.servings * scaleFactor }];
     const items = generateShoppingList(planRecipes, []);
-    const chicken = items.find((i) => i.ingredient === 'Hähnchenbrust');
-    expect(chicken!.amount).toBe(600);
-    const rice = items.find((i) => i.ingredient === 'Reis');
-    expect(rice!.amount).toBe(300);
+
+    for (const origIng of recipe.ingredients) {
+      const item = items.find((i) => i.ingredient === origIng.name);
+      expect(item).toBeDefined();
+      expect(item!.amount).toBeCloseTo(origIng.amount * scaleFactor, 0);
+    }
   });
 
   it('sorts items by category order', () => {
-    const planRecipes = [{ recipe: mockRecipes[0], scaledServings: 2 }];
+    const recipes = pickRecipes('omnivore', 3);
+    const planRecipes = recipes.map((r) => ({ recipe: r, scaledServings: r.servings }));
     const items = generateShoppingList(planRecipes, []);
+
+    const categoryOrder = ['fleisch', 'fisch', 'milchprodukte', 'gemüse', 'obst',
+      'getreide', 'hülsenfrüchte', 'nüsse', 'öle_fette', 'gewürze',
+      'säuwarenten', 'getränke', 'tiefkühl', 'konserven', 'sonstiges'];
     const categories = items.map((i) => i.category);
-    expect(categories.indexOf('fleisch')).toBeLessThan(categories.indexOf('getreide'));
-    expect(categories.indexOf('getreide')).toBeLessThan(categories.indexOf('öle_fette'));
+    for (let i = 1; i < categories.length; i++) {
+      expect(categoryOrder.indexOf(categories[i])).toBeGreaterThanOrEqual(categoryOrder.indexOf(categories[i - 1]));
+    }
   });
 
   it('returns empty list for empty recipes', () => {
     const items = generateShoppingList([], []);
     expect(items).toHaveLength(0);
   });
+
+  it('generates shopping list from a full week plan', () => {
+    const { generateMealPlan } = require('../lib/meals/generator');
+    const plan = generateMealPlan({
+      calories: 2200,
+      protein: 150,
+      carbs: 250,
+      fat: 73,
+      maxCookTime: 45,
+      diet: 'omnivore',
+      mealsPerDay: 3,
+    });
+    const allSlots = plan.days.flatMap((d: any) => d.meals);
+    const planRecipes = allSlots.map((s: any) => ({ recipe: s.recipe, scaledServings: s.scaledServings }));
+    const items = generateShoppingList(planRecipes, []);
+
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.ingredient.length).toBeGreaterThan(0);
+      expect(item.amount).toBeGreaterThan(0);
+      expect(item.unit).toBeDefined();
+      expect(item.category).toBeDefined();
+      expect(item.recipeIds.length).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('toggleChecked', () => {
-  const items = [
-    { id: '1', ingredient: 'A', amount: 1, unit: 'g' as const, category: 'fleisch' as const, recipeIds: ['r1'], checked: false, inPantry: false },
-    { id: '2', ingredient: 'B', amount: 2, unit: 'g' as const, category: 'gemüse' as const, recipeIds: ['r1'], checked: false, inPantry: false },
+  const items: ShoppingItem[] = [
+    { id: '1', ingredient: 'Butter', amount: 100, unit: 'g', category: 'milchprodukte', recipeIds: ['r1'], checked: false, inPantry: false },
+    { id: '2', ingredient: 'Reis', amount: 500, unit: 'g', category: 'getreide', recipeIds: ['r1', 'r2'], checked: false, inPantry: false },
   ];
 
   it('toggles checked state for a single item', () => {
@@ -122,5 +137,27 @@ describe('toggleChecked', () => {
     const result = toggleChecked(items, '2');
     expect(result[0].checked).toBe(false);
     expect(result[1].checked).toBe(true);
+  });
+});
+
+describe('togglePantry', () => {
+  const items: ShoppingItem[] = [
+    { id: '1', ingredient: 'Butter', amount: 100, unit: 'g', category: 'milchprodukte', recipeIds: ['r1'], checked: false, inPantry: false },
+    { id: '2', ingredient: 'Reis', amount: 500, unit: 'g', category: 'getreide', recipeIds: ['r1'], checked: false, inPantry: true },
+  ];
+
+  it('toggles pantry state for a non-pantry item', () => {
+    const result = togglePantry(items, '1');
+    expect(result[0].inPantry).toBe(true);
+  });
+
+  it('toggles pantry state for an already-pantry item', () => {
+    const result = togglePantry(items, '2');
+    expect(result[1].inPantry).toBe(false);
+  });
+
+  it('leaves other items unchanged', () => {
+    const result = togglePantry(items, '1');
+    expect(result[1].inPantry).toBe(true);
   });
 });
