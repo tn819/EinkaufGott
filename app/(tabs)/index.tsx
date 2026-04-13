@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAppStore } from '../../lib/store';
 import { generateMealPlan, findAlternatives, swapMeal } from '../../lib/meals/generator';
+import { MacroRingsRow } from '../../lib/components';
 import { COLORS, SPACING } from '../../lib/theme';
 import type { DayPlan, MealSlot, Recipe } from '../../lib/types';
 
@@ -214,12 +215,16 @@ export default function HomeScreen() {
 
         <View style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
           <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.sm }}>Ø pro Tag</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-            <MacroPill label="Kcal" value={avgCal} unit="" color={COLORS.text} />
-            <MacroPill label="Protein" value={avgP} unit="g" color={COLORS.protein} />
-            <MacroPill label="Carbs" value={avgC} unit="g" color={COLORS.carbs} />
-            <MacroPill label="Fett" value={avgF} unit="g" color={COLORS.fat} />
-          </View>
+          <MacroRingsRow
+            calories={avgCal}
+            protein={avgP}
+            carbs={avgC}
+            fat={avgF}
+            targetCalories={macroTarget.calories}
+            targetProtein={macroTarget.protein}
+            targetCarbs={macroTarget.carbs}
+            targetFat={macroTarget.fat}
+          />
         </View>
 
         {currentPlan.days.map((day, i) => (

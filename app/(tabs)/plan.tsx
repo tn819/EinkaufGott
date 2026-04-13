@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native'
 import { useRouter } from 'expo-router';
 import { useAppStore } from '../../lib/store';
 import { generateMealPlan } from '../../lib/meals/generator';
+import { MacroRingsRow } from '../../lib/components';
 import { COLORS, SPACING } from '../../lib/theme';
 import type { DayPlan, MealSlot, MacroTarget } from '../../lib/types';
 
@@ -134,23 +135,18 @@ export default function PlanScreen() {
         </Pressable>
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>Ø kcal</Text>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>{Math.round(currentPlan.days.reduce((a, d) => a + d.totalMacros.calories, 0) / 7)}</Text>
-        </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>Ø Protein</Text>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.protein }}>{Math.round(currentPlan.days.reduce((a, d) => a + d.totalMacros.protein, 0) / 7)}g</Text>
-        </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>Ø Carbs</Text>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.carbs }}>{Math.round(currentPlan.days.reduce((a, d) => a + d.totalMacros.carbs, 0) / 7)}g</Text>
-        </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>Ø Fett</Text>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.fat }}>{Math.round(currentPlan.days.reduce((a, d) => a + d.totalMacros.fat, 0) / 7)}g</Text>
-        </View>
+      <View style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
+        <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.sm }}>Ø pro Tag</Text>
+        <MacroRingsRow
+          calories={currentPlan.days.reduce((a, d) => a + d.totalMacros.calories, 0) / 7}
+          protein={currentPlan.days.reduce((a, d) => a + d.totalMacros.protein, 0) / 7}
+          carbs={currentPlan.days.reduce((a, d) => a + d.totalMacros.carbs, 0) / 7}
+          fat={currentPlan.days.reduce((a, d) => a + d.totalMacros.fat, 0) / 7}
+          targetCalories={macroTarget.calories}
+          targetProtein={macroTarget.protein}
+          targetCarbs={macroTarget.carbs}
+          targetFat={macroTarget.fat}
+        />
       </View>
 
       {weekDateStrings.map((dateStr, i) => {
