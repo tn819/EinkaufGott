@@ -14,9 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.einkaufgott.app"
     },
     "android": {
+      "package": "com.einkaufgott.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -29,7 +31,18 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
-    ]
+      "expo-router",
+      [
+        "expo-updates",
+        {
+          "username": "tn819"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "einkaufgott"
+      }
+    }
   }
 }
