@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 import { useAppStore } from '../../lib/store';
 import { generateMealPlan, findAlternatives, swapMeal } from '../../lib/meals/generator';
 import { MacroRingsRow } from '../../lib/components';
-import { COLORS, SPACING } from '../../lib/theme';
+import { useThemeColors, SPACING } from '../../lib/theme';
+import { tap, success, select } from '../../lib/haptics';
 import type { DayPlan, MealSlot, Recipe } from '../../lib/types';
 
 const DAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -16,6 +17,7 @@ const MEAL_LABELS: Record<string, string> = {
 };
 
 function MacroPill({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) {
+  const COLORS = useThemeColors();
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
       <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>{label}</Text>
@@ -26,10 +28,11 @@ function MacroPill({ label, value, unit, color }: { label: string; value: number
 }
 
 function MealCard({ slot, onPress, onLongPress }: { slot: MealSlot; onPress: () => void; onLongPress: () => void }) {
+  const COLORS = useThemeColors();
   const dietEmoji: Record<string, string> = { omnivore: '🥩', vegetarian: '🥗', vegan: '🌱' };
   const cookTimeColor = slot.recipe.totalTime <= 15 ? '#2E7D32' : slot.recipe.totalTime <= 30 ? '#FF6F00' : '#D32F2F';
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border }}>
+    <Pressable onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => ({ backgroundColor: pressed ? COLORS.primaryLight : COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, transform: [{ scale: pressed ? 0.98 : 1 }], opacity: pressed ? 0.9 : 1 })}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs }}>
         <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -49,6 +52,7 @@ function MealCard({ slot, onPress, onLongPress }: { slot: MealSlot; onPress: () 
 }
 
 function SwapModal({ recipe, alternatives, onSelect, onClose }: { recipe: Recipe; alternatives: Recipe[]; onSelect: (r: Recipe) => void; onClose: () => void }) {
+  const COLORS = useThemeColors();
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: COLORS.bg, paddingTop: 60 }}>
@@ -69,8 +73,8 @@ function SwapModal({ recipe, alternatives, onSelect, onClose }: { recipe: Recipe
             return (
               <Pressable
                 key={alt.id}
-                onPress={() => onSelect(alt)}
-                style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border }}
+                onPress={() => { tap(); onSelect(alt); }}
+                style={({ pressed }) => ({ backgroundColor: pressed ? COLORS.primaryLight : COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, transform: [{ scale: pressed ? 0.98 : 1 }], opacity: pressed ? 0.9 : 1 })}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flex: 1 }}>
@@ -100,6 +104,7 @@ function SwapModal({ recipe, alternatives, onSelect, onClose }: { recipe: Recipe
 }
 
 function DaySection({ day, index, onMealPress, onMealLongPress }: { day: DayPlan; index: number; onMealPress: (recipeId: string) => void; onMealLongPress: (dayIndex: number, mealIndex: number) => void }) {
+  const COLORS = useThemeColors();
   return (
     <View style={{ marginBottom: SPACING.lg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
@@ -134,19 +139,23 @@ function DaySection({ day, index, onMealPress, onMealLongPress }: { day: DayPlan
 
 export default function HomeScreen() {
   const { currentPlan, macroTarget, setCurrentPlan } = useAppStore();
+  const COLORS = useThemeColors();
   const router = useRouter();
   const [swapInfo, setSwapInfo] = useState<{ dayIndex: number; mealIndex: number } | null>(null);
 
   const handleGenerate = () => {
     const plan = generateMealPlan(macroTarget);
     setCurrentPlan(plan);
+    success();
   };
 
   const handleMealPress = (recipeId: string) => {
+    tap();
     router.push(`/recipe/${recipeId}`);
   };
 
   const handleLongPress = (dayIndex: number, mealIndex: number) => {
+    select();
     setSwapInfo({ dayIndex, mealIndex });
   };
 
@@ -160,7 +169,7 @@ export default function HomeScreen() {
           <Text style={{ fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: SPACING.xl, lineHeight: 20 }}>
             Stelle deine Makros ein und generiere deinen Wochenplan.
           </Text>
-          <Pressable onPress={handleGenerate} style={{ backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl }}>
+          <Pressable onPress={handleGenerate} style={({ pressed }) => ({ backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, transform: [{ scale: pressed ? 0.97 : 1 }], opacity: pressed ? 0.9 : 1 })}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>Plan erstellen</Text>
           </Pressable>
         </View>
@@ -201,6 +210,7 @@ export default function HomeScreen() {
     const newPlan = swapMeal(currentPlan, swapInfo.dayIndex, swapInfo.mealIndex, newRecipe);
     setCurrentPlan(newPlan);
     setSwapInfo(null);
+    success();
   };
 
   return (
@@ -224,6 +234,7 @@ export default function HomeScreen() {
             targetProtein={macroTarget.protein}
             targetCarbs={macroTarget.carbs}
             targetFat={macroTarget.fat}
+            colors={COLORS}
           />
         </View>
 

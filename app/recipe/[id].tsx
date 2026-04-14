@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { COLORS, SPACING } from '../../lib/theme';
+import { useThemeColors, SPACING } from '../../lib/theme';
+import { tap } from '../../lib/haptics';
+import type { ThemeColors } from '../../lib/theme';
 import { RECIPES } from '../../data/recipes';
 import type { Recipe, Ingredient } from '../../lib/types';
 
@@ -16,12 +18,12 @@ function ingredientLine(ing: Ingredient): string {
   return `${ing.amount}${sep}${unitStr} ${ing.name}`;
 }
 
-function macroBadge(label: string, value: number, unit: string, color: string) {
+function macroBadge(label: string, value: number, unit: string, color: string, colors: ThemeColors) {
   return (
     <View style={{ flex: 1, backgroundColor: `${color}15`, borderRadius: 10, paddingVertical: SPACING.sm, alignItems: 'center' }}>
-      <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>{label}</Text>
+      <Text style={{ fontSize: 11, color: colors.textSecondary }}>{label}</Text>
       <Text style={{ fontSize: 18, fontWeight: '700', color }}>{Math.round(value)}</Text>
-      <Text style={{ fontSize: 10, color: COLORS.muted }}>{unit}</Text>
+      <Text style={{ fontSize: 10, color: colors.muted }}>{unit}</Text>
     </View>
   );
 }
@@ -29,6 +31,7 @@ function macroBadge(label: string, value: number, unit: string, color: string) {
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const COLORS = useThemeColors();
   const recipe = RECIPES.find((r) => r.id === id);
 
   if (!recipe) {
@@ -36,7 +39,7 @@ export default function RecipeDetailScreen() {
       <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl }}>
         <Text style={{ fontSize: 48, marginBottom: SPACING.lg }}>🔍</Text>
         <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm }}>Rezept nicht gefunden</Text>
-        <Pressable onPress={() => router.back()} style={{ backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md }}>
+        <Pressable onPress={() => { tap(); router.back(); }} style={{ backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md }}>
           <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>Zurück</Text>
         </Pressable>
       </View>
@@ -47,6 +50,7 @@ export default function RecipeDetailScreen() {
 }
 
 export function RecipeDetail({ recipe }: { recipe: Recipe }) {
+  const COLORS = useThemeColors();
   const dietLabel: Record<string, string> = { omnivore: '🥩 Alles', vegetarian: '🥗 Vegetarisch', vegan: '🌱 Vegan' };
   const diffLabel: Record<string, string> = { easy: 'Einfach', medium: 'Mittel', hard: 'Schwierig' };
 
@@ -73,10 +77,10 @@ export function RecipeDetail({ recipe }: { recipe: Recipe }) {
       </View>
 
       <View style={{ flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.xl }}>
-        {macroBadge('Kcal', recipe.macros.calories, '', COLORS.text)}
-        {macroBadge('Protein', recipe.macros.protein, 'g', COLORS.protein)}
-        {macroBadge('Carbs', recipe.macros.carbs, 'g', COLORS.carbs)}
-        {macroBadge('Fett', recipe.macros.fat, 'g', COLORS.fat)}
+        {macroBadge('Kcal', recipe.macros.calories, '', COLORS.text, COLORS)}
+        {macroBadge('Protein', recipe.macros.protein, 'g', COLORS.protein, COLORS)}
+        {macroBadge('Carbs', recipe.macros.carbs, 'g', COLORS.carbs, COLORS)}
+        {macroBadge('Fett', recipe.macros.fat, 'g', COLORS.fat, COLORS)}
       </View>
 
       <View style={{ marginBottom: SPACING.lg }}>

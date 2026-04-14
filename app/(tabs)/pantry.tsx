@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Alert } from 'react-native';
 import { useAppStore } from '../../lib/store';
-import { COLORS, SPACING } from '../../lib/theme';
+import { useThemeColors, SPACING } from '../../lib/theme';
+import { tap, success, heavy, select } from '../../lib/haptics';
 import type { IngredientCategory, IngredientUnit, PantryItem } from '../../lib/types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -48,6 +49,7 @@ function generateId(): string {
 
 export default function PantryScreen() {
   const { pantry, addPantryItem, removePantryItem } = useAppStore();
+  const COLORS = useThemeColors();
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -66,6 +68,7 @@ export default function PantryScreen() {
       addedAt: new Date().toISOString().slice(0, 10),
     };
     addPantryItem(item);
+    success();
     setName('');
     setAmount('');
     setUnit('stück');
@@ -74,6 +77,7 @@ export default function PantryScreen() {
   };
 
   const handleDelete = (id: string, ingredientName: string) => {
+    heavy();
     Alert.alert(
       'Entfernen',
       `"${ingredientName}" aus dem Vorrat entfernen?`,
@@ -98,7 +102,7 @@ export default function PantryScreen() {
           <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{pantry.length} Artikel in deinem Vorrat</Text>
         </View>
         <Pressable
-          onPress={() => setShowAdd(!showAdd)}
+          onPress={() => { select(); setShowAdd(!showAdd); }}
           style={{ backgroundColor: showAdd ? COLORS.border : COLORS.primary, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}
         >
           <Text style={{ fontSize: 13, fontWeight: '600', color: showAdd ? COLORS.text : '#FFF' }}>{showAdd ? 'Fertig' : '+ Hinzufügen'}</Text>

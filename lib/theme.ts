@@ -1,4 +1,6 @@
-export const COLORS = {
+import { useColorScheme } from 'react-native';
+
+export const LIGHT_COLORS = {
   bg: '#FAFAFA',
   card: '#FFFFFF',
   text: '#1A1A1A',
@@ -15,6 +17,33 @@ export const COLORS = {
   warning: '#FF6F00',
   error: '#D32F2F',
 } as const;
+
+export const DARK_COLORS = {
+  bg: '#121212',
+  card: '#1E1E1E',
+  text: '#E8E8E8',
+  textSecondary: '#AAAAAA',
+  muted: '#666666',
+  border: '#333333',
+  primary: '#4CAF50',
+  primaryLight: '#1B3A1D',
+  secondary: '#FF9800',
+  protein: '#EF5350',
+  carbs: '#FFC107',
+  fat: '#42A5F5',
+  success: '#4CAF50',
+  warning: '#FF9800',
+  error: '#EF5350',
+} as const;
+
+export type ThemeColors = Record<keyof typeof LIGHT_COLORS, string>;
+
+export function useThemeColors(): ThemeColors {
+  const scheme = useColorScheme();
+  return scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+}
+
+export const COLORS = LIGHT_COLORS;
 
 export const SPACING = {
   xs: 4,

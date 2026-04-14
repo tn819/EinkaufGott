@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, Linking, Alert } from 'react-native';
 import { useAppStore } from '../../lib/store';
-import { COLORS, SPACING } from '../../lib/theme';
+import { useThemeColors, SPACING } from '../../lib/theme';
+import { tap, success, impact } from '../../lib/haptics';
 import { generateShoppingList, toggleChecked } from '../../lib/shopping';
 import { ingredientToReweQuery } from '../../lib/rewe/products';
 import { RECIPES } from '../../data/recipes';
@@ -74,6 +75,7 @@ function getReweQuery(ingredientName: string): string {
 
 export default function ShoppingScreen() {
   const { currentPlan, shoppingList, setShoppingList, pantry } = useAppStore();
+  const COLORS = useThemeColors();
 
   const items = useMemo(() => {
     if (!currentPlan) return [];
@@ -88,6 +90,7 @@ export default function ShoppingScreen() {
   }, [currentPlan, pantry]);
 
   const handleReweCart = () => {
+    impact();
     const nonPantry = shoppingList.filter((i) => !i.inPantry);
     if (nonPantry.length === 0) return;
 
@@ -166,7 +169,7 @@ export default function ShoppingScreen() {
               return (
                 <Pressable
                   key={item.id}
-                  onPress={() => setShoppingList(toggleChecked(shoppingList, item.id))}
+                  onPress={() => { tap(); setShoppingList(toggleChecked(shoppingList, item.id)); }}
                   style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: item.checked ? COLORS.bg : COLORS.card }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 }}>

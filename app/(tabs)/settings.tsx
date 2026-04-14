@@ -2,21 +2,23 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useAppStore } from '../../lib/store';
 import { generateMealPlan } from '../../lib/meals/generator';
-import { COLORS, SPACING } from '../../lib/theme';
+import { useThemeColors, SPACING } from '../../lib/theme';
+import { tap, success, select } from '../../lib/haptics';
 import type { DietPreference, MacroTarget } from '../../lib/types';
 
 function Stepper({ value, onChange, step = 1, min = 0 }: { value: number; onChange: (v: number) => void; step?: number; min?: number }) {
+  const COLORS = useThemeColors();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
       <Pressable
-        onPress={() => onChange(Math.max(min, value - step))}
+        onPress={() => { tap(); onChange(Math.max(min, value - step)); }}
         style={{ backgroundColor: COLORS.border, borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
       >
         <Text style={{ fontSize: 20, color: COLORS.text }}>−</Text>
       </Pressable>
       <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.text, minWidth: 50, textAlign: 'center' }}>{value}</Text>
       <Pressable
-        onPress={() => onChange(value + step)}
+        onPress={() => { tap(); onChange(value + step); }}
         style={{ backgroundColor: COLORS.primary, borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
       >
         <Text style={{ fontSize: 20, color: '#FFFFFF' }}>+</Text>
@@ -26,6 +28,7 @@ function Stepper({ value, onChange, step = 1, min = 0 }: { value: number; onChan
 }
 
 function MacroInput({ label, value, onChange, color, unit = 'g' }: { label: string; value: number; onChange: (v: number) => void; color: string; unit?: string }) {
+  const COLORS = useThemeColors();
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.lg, alignItems: 'center', gap: SPACING.sm, borderWidth: 1, borderColor: `${color}30` }}>
       <Text style={{ fontSize: 12, color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
@@ -43,6 +46,7 @@ const DIETS: { key: DietPreference; label: string; emoji: string }[] = [
 
 export default function SettingsScreen() {
   const { macroTarget, setMacroTarget, setCurrentPlan } = useAppStore();
+  const COLORS = useThemeColors();
   const [local, setLocal] = useState<MacroTarget>(macroTarget);
 
   const update = (partial: Partial<MacroTarget>) => setLocal((prev) => ({ ...prev, ...partial }));
@@ -51,6 +55,7 @@ export default function SettingsScreen() {
     setMacroTarget(local);
     const plan = generateMealPlan(local);
     setCurrentPlan(plan);
+    success();
   };
 
   return (
@@ -88,7 +93,7 @@ export default function SettingsScreen() {
           {DIETS.map((d) => (
             <Pressable
               key={d.key}
-              onPress={() => update({ diet: d.key })}
+              onPress={() => { select(); update({ diet: d.key }); }}
               style={{
                 flex: 1,
                 backgroundColor: local.diet === d.key ? COLORS.primary : COLORS.bg,

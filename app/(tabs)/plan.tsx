@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 import { useAppStore } from '../../lib/store';
 import { generateMealPlan } from '../../lib/meals/generator';
 import { MacroRingsRow } from '../../lib/components';
-import { COLORS, SPACING } from '../../lib/theme';
+import { useThemeColors, SPACING, type ThemeColors } from '../../lib/theme';
+import { tap, success, select } from '../../lib/haptics';
 import type { DayPlan, MealSlot, MacroTarget } from '../../lib/types';
 
 const DAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -36,19 +37,20 @@ function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function macroColor(actual: number, target: number): string {
-  if (target === 0) return COLORS.muted;
+function macroColor(actual: number, target: number, colors: ThemeColors): string {
+  if (target === 0) return colors.muted;
   const pct = Math.abs(actual - target) / target;
-  if (pct <= 0.10) return COLORS.success;
-  if (pct <= 0.25) return COLORS.warning;
-  return COLORS.error;
+  if (pct <= 0.10) return colors.success;
+  if (pct <= 0.25) return colors.warning;
+  return colors.error;
 }
 
 function MealRow({ slot, onPress }: { slot: MealSlot; onPress: () => void }) {
+  const COLORS = useThemeColors();
   const cookTimeColor = slot.recipe.totalTime <= 15 ? COLORS.success : slot.recipe.totalTime <= 30 ? COLORS.warning : COLORS.error;
 
   return (
-    <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+    <Pressable onPress={() => { tap(); onPress(); }} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
       <View style={{ width: 56 }}>
         <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
         <Text style={{ fontSize: 11, color: cookTimeColor, fontWeight: '600' }}>⏱ {slot.recipe.totalTime}min</Text>
@@ -66,6 +68,7 @@ function MealRow({ slot, onPress }: { slot: MealSlot; onPress: () => void }) {
 
 export default function PlanScreen() {
   const { currentPlan, macroTarget, setCurrentPlan } = useAppStore();
+  const COLORS = useThemeColors();
   const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
@@ -74,6 +77,7 @@ export default function PlanScreen() {
   const handleGenerate = useCallback(() => {
     const plan = generateMealPlan(macroTarget);
     setCurrentPlan(plan);
+    success();
   }, [macroTarget, setCurrentPlan]);
 
   const handleRefresh = useCallback(() => {
@@ -146,6 +150,7 @@ export default function PlanScreen() {
           targetProtein={macroTarget.protein}
           targetCarbs={macroTarget.carbs}
           targetFat={macroTarget.fat}
+          colors={COLORS}
         />
       </View>
 
@@ -154,15 +159,15 @@ export default function PlanScreen() {
         if (!day) return null;
 
         const isExpanded = expandedDay === i;
-        const calColor = macroColor(day.totalMacros.calories, dailyTarget.calories);
-        const proColor = macroColor(day.totalMacros.protein, dailyTarget.protein);
-        const carbColor = macroColor(day.totalMacros.carbs, dailyTarget.carbs);
-        const fatColor = macroColor(day.totalMacros.fat, dailyTarget.fat);
+        const calColor = macroColor(day.totalMacros.calories, dailyTarget.calories, COLORS);
+        const proColor = macroColor(day.totalMacros.protein, dailyTarget.protein, COLORS);
+        const carbColor = macroColor(day.totalMacros.carbs, dailyTarget.carbs, COLORS);
+        const fatColor = macroColor(day.totalMacros.fat, dailyTarget.fat, COLORS);
 
         return (
           <Pressable
             key={day.date}
-            onPress={() => setExpandedDay(isExpanded ? null : i)}
+            onPress={() => { select(); setExpandedDay(isExpanded ? null : i); }}
             style={{ backgroundColor: COLORS.card, borderRadius: 12, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' }}
           >
             <View style={{ padding: SPACING.md }}>
