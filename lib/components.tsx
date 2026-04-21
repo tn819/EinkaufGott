@@ -25,36 +25,37 @@ export function MacroRing({ label, value, target, unit, color, colors }: MacroRi
   const isUnder = value < target * 0.9;
   const displayColor = isOver ? colors.error : isUnder ? colors.warning : color;
 
+  const displayLabel = unit ? `${label} ${unit}` : label;
+
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Svg width={RING_SIZE} height={RING_SIZE}>
-        <G rotation="-90" origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}>
-          <Circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
-            r={RADIUS}
-            stroke={colors.border}
-            strokeWidth={STROKE_WIDTH}
-            fill="none"
-          />
-          <Circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
-            r={RADIUS}
-            stroke={displayColor}
-            strokeWidth={STROKE_WIDTH + 1}
-            fill="none"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-          />
-        </G>
-      </Svg>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>{Math.round(value)}</Text>
+      <View style={{ width: RING_SIZE, height: RING_SIZE, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={RING_SIZE} height={RING_SIZE}>
+          <G rotation="-90" origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}>
+            <Circle
+              cx={RING_SIZE / 2}
+              cy={RING_SIZE / 2}
+              r={RADIUS}
+              stroke={colors.border}
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+            />
+            <Circle
+              cx={RING_SIZE / 2}
+              cy={RING_SIZE / 2}
+              r={RADIUS}
+              stroke={displayColor}
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+              strokeDasharray={CIRCUMFERENCE}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+            />
+          </G>
+        </Svg>
+        <Text style={{ position: 'absolute', fontSize: 12, fontWeight: '700', color: colors.text }}>{Math.round(value)}</Text>
       </View>
-      <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 2 }}>{label}</Text>
-      {unit && <Text style={{ fontSize: 9, color: colors.muted }}>{unit}</Text>}
+      <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 4 }}>{displayLabel}</Text>
     </View>
   );
 }
@@ -83,7 +84,7 @@ export function MacroRingsRow({
   colors,
 }: MacroRingsRowProps) {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-start' }}>
       <MacroRing label="Kcal" value={calories} target={targetCalories} color={colors.text} colors={colors} />
       <MacroRing label="Protein" value={protein} target={targetProtein} unit="g" color={colors.protein} colors={colors} />
       <MacroRing label="Carbs" value={carbs} target={targetCarbs} unit="g" color={colors.carbs} colors={colors} />

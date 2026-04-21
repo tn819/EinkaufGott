@@ -114,14 +114,11 @@ export default function PlanScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: COLORS.bg }}
-      contentContainerStyle={{ padding: SPACING.lg, paddingBottom: SPACING.xxl }}
+      contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 100 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.primary} />}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md }}>
-        <View>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.text }}>Wochenplan</Text>
-          <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{headerRange}</Text>
-        </View>
+        <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{headerRange}</Text>
         <Pressable onPress={handleGenerate} style={{ backgroundColor: COLORS.primaryLight, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}>
           <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.primary }}>🔄 Neu</Text>
         </Pressable>
@@ -139,8 +136,8 @@ export default function PlanScreen() {
         </Pressable>
       </View>
 
-      <View style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
-        <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.sm }}>Ø pro Tag</Text>
+      <View style={{ backgroundColor: COLORS.card, borderRadius: 12, paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
+        <Text style={{ fontSize: 11, color: COLORS.textSecondary, marginBottom: SPACING.sm, textAlign: 'center' }}>Ø pro Tag</Text>
         <MacroRingsRow
           calories={currentPlan.days.reduce((a, d) => a + d.totalMacros.calories, 0) / 7}
           protein={currentPlan.days.reduce((a, d) => a + d.totalMacros.protein, 0) / 7}
@@ -182,14 +179,10 @@ export default function PlanScreen() {
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: calColor }}>{Math.round(day.totalMacros.calories)} kcal</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-                    <Text style={{ fontSize: 11, color: proColor }}>P {Math.round(day.totalMacros.protein)}g</Text>
-                    <Text style={{ fontSize: 11, color: carbColor }}>K {Math.round(day.totalMacros.carbs)}g</Text>
-                    <Text style={{ fontSize: 11, color: fatColor }}>F {Math.round(day.totalMacros.fat)}g</Text>
-                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: calColor }}>{Math.round(day.totalMacros.calories)} kcal</Text>
+                  <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>
+                    P{Math.round(day.totalMacros.protein)} · K{Math.round(day.totalMacros.carbs)} · F{Math.round(day.totalMacros.fat)}
+                  </Text>
                 </View>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.xs }}>

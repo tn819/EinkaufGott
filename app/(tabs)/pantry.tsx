@@ -95,12 +95,9 @@ export default function PantryScreen() {
   }, [] as { category: string; items: PantryItem[] }[]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: showAdd ? 400 : SPACING.xxl }}>
+    <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: showAdd ? 400 : 100 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
-        <View>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.text }}>Vorrat</Text>
-          <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{pantry.length} Artikel in deinem Vorrat</Text>
-        </View>
+        <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{pantry.length} Artikel in deinem Vorrat</Text>
         <Pressable
           onPress={() => { select(); setShowAdd(!showAdd); }}
           style={{ backgroundColor: showAdd ? COLORS.border : COLORS.primary, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}

@@ -20,9 +20,8 @@ function MacroPill({ label, value, unit, color }: { label: string; value: number
   const COLORS = useThemeColors();
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>{label}</Text>
-      <Text style={{ fontSize: 16, fontWeight: '700', color }}>{Math.round(value)}</Text>
-      <Text style={{ fontSize: 10, color: COLORS.muted }}>{unit}</Text>
+      <Text style={{ fontSize: 10, color: COLORS.textSecondary, marginBottom: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '700', color }}>{Math.round(value)}<Text style={{ fontSize: 10, fontWeight: '400', color: COLORS.textSecondary }}> {unit}</Text></Text>
     </View>
   );
 }
@@ -34,14 +33,16 @@ function MealCard({ slot, onPress, onLongPress }: { slot: MealSlot; onPress: () 
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => ({ backgroundColor: pressed ? COLORS.primaryLight : COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, transform: [{ scale: pressed ? 0.98 : 1 }], opacity: pressed ? 0.9 : 1 })}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs }}>
-        <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <View style={{ backgroundColor: COLORS.primaryLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.primary }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={{ fontSize: 12, color: cookTimeColor, fontWeight: '600' }}>⏱ {slot.recipe.totalTime}min</Text>
-          <Text style={{ fontSize: 12 }}>{dietEmoji[slot.recipe.diet] ?? ''}</Text>
+          <Text style={{ fontSize: 14 }}>{dietEmoji[slot.recipe.diet] ?? ''}</Text>
         </View>
       </View>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs }}>{slot.recipe.titleDe}</Text>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.sm }}>{slot.recipe.titleDe}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
         <MacroPill label="Kcal" value={slot.scaledMacros.calories} unit="kcal" color={COLORS.text} />
         <MacroPill label="P" value={slot.scaledMacros.protein} unit="g" color={COLORS.protein} />
         <MacroPill label="K" value={slot.scaledMacros.carbs} unit="g" color={COLORS.carbs} />
@@ -107,19 +108,16 @@ function DaySection({ day, index, onMealPress, onMealLongPress }: { day: DayPlan
   const COLORS = useThemeColors();
   return (
     <View style={{ marginBottom: SPACING.lg }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm, paddingHorizontal: SPACING.xs }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
           <View style={{ backgroundColor: COLORS.primary, borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>{DAY_NAMES[index] ?? '?'}</Text>
           </View>
           <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{day.date}</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-          <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{Math.round(day.totalMacros.calories)} kcal</Text>
-          <Text style={{ fontSize: 12, color: COLORS.protein }}>P {Math.round(day.totalMacros.protein)}g</Text>
-          <Text style={{ fontSize: 12, color: COLORS.carbs }}>K {Math.round(day.totalMacros.carbs)}g</Text>
-          <Text style={{ fontSize: 12, color: COLORS.fat }}>F {Math.round(day.totalMacros.fat)}g</Text>
-        </View>
+        <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
+          {Math.round(day.totalMacros.calories)} kcal · P{Math.round(day.totalMacros.protein)} · K{Math.round(day.totalMacros.carbs)} · F{Math.round(day.totalMacros.fat)}
+        </Text>
       </View>
       {day.meals.length === 0 ? (
         <Text style={{ fontSize: 14, color: COLORS.muted, textAlign: 'center', padding: SPACING.lg }}>Keine Mahlzeiten</Text>
@@ -215,16 +213,15 @@ export default function HomeScreen() {
 
   return (
     <>
-      <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md }}>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.text }}>Dein Plan</Text>
-          <Pressable onPress={handleGenerate} style={{ backgroundColor: COLORS.primaryLight, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}>
+      <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 100 }}>
+        <View style={{ marginBottom: SPACING.lg }}>
+          <Pressable onPress={handleGenerate} style={{ backgroundColor: COLORS.primaryLight, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, alignSelf: 'flex-end' }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.primary }}>🔄 Neu</Text>
           </Pressable>
         </View>
 
-        <View style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
-          <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginBottom: SPACING.sm }}>Ø pro Tag</Text>
+        <View style={{ backgroundColor: COLORS.card, borderRadius: 12, paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
+          <Text style={{ fontSize: 11, color: COLORS.textSecondary, marginBottom: SPACING.sm, textAlign: 'center' }}>Ø pro Tag</Text>
           <MacroRingsRow
             calories={avgCal}
             protein={avgP}

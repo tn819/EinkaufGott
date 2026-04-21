@@ -127,10 +127,7 @@ export default function ShoppingScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 100 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
-        <View>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.text }}>Einkaufsliste</Text>
-          <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{shoppingList.length} Artikel für deinen Wochenplan</Text>
-        </View>
+        <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{shoppingList.length} Artikel für deinen Wochenplan</Text>
         {pantryItems.length > 0 && (
           <Pressable onPress={() => {
             setShoppingList(shoppingList.map((i) => i.inPantry ? { ...i, inPantry: false } : i));

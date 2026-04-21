@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAppStore } from '../../lib/store';
 import { generateMealPlan } from '../../lib/meals/generator';
 import { useThemeColors, SPACING } from '../../lib/theme';
@@ -47,20 +48,25 @@ const DIETS: { key: DietPreference; label: string; emoji: string }[] = [
 export default function SettingsScreen() {
   const { macroTarget, setMacroTarget, setCurrentPlan } = useAppStore();
   const COLORS = useThemeColors();
+  const router = useRouter();
   const [local, setLocal] = useState<MacroTarget>(macroTarget);
 
   const update = (partial: Partial<MacroTarget>) => setLocal((prev) => ({ ...prev, ...partial }));
 
   const handleGenerate = () => {
-    setMacroTarget(local);
-    const plan = generateMealPlan(local);
-    setCurrentPlan(plan);
-    success();
+    try {
+      setMacroTarget(local);
+      const plan = generateMealPlan(local);
+      setCurrentPlan(plan);
+      success();
+      router.replace('/');
+    } catch (e) {
+      Alert.alert('Fehler', 'Plan konnte nicht erstellt werden. Versuche andere Werte.');
+    }
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg }}>
-      <Text style={{ fontSize: 28, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm }}>Deine Makros</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 100 }}>
       <Text style={{ fontSize: 14, color: COLORS.textSecondary, marginBottom: SPACING.xl }}>Stelle deine Tagesziele ein</Text>
 
       <View style={{ backgroundColor: COLORS.card, borderRadius: 16, padding: SPACING.lg, marginBottom: SPACING.lg }}>
@@ -113,13 +119,15 @@ export default function SettingsScreen() {
 
       <Pressable
         onPress={handleGenerate}
-        style={{
+        style={({ pressed }) => ({
           backgroundColor: COLORS.primary,
           borderRadius: 12,
           paddingVertical: SPACING.lg,
           alignItems: 'center',
           marginBottom: SPACING.xl,
-        }}
+          transform: [{ scale: pressed ? 0.97 : 1 }],
+          opacity: pressed ? 0.9 : 1,
+        })}
       >
         <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>Wochenplan erstellen</Text>
       </Pressable>
