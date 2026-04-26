@@ -1,211 +1,234 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, TextInput, Modal, StyleSheet, Alert } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAppStore } from '../../lib/store';
-import { useThemeColors, SPACING } from '../../lib/theme';
-import { tap, success, heavy, select } from '../../lib/haptics';
-import type { IngredientCategory, IngredientUnit, PantryItem } from '../../lib/types';
+import { useThemeColors, SPACING, RADII, SHADOWS } from '../../lib/theme';
+import { tap, success, select, impact, heavy } from '../../lib/haptics';
+import { lookupBarcode } from '../../lib/pantry/barcode';
+import type { PantryItem } from '../../lib/types';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  fleisch: '🥩 Fleisch & Fisch',
-  fisch: '🐟 Fisch',
-  milchprodukte: '🧀 Milchprodukte',
-  gemüse: '🥬 Gemüse',
-  obst: '🍎 Obst',
-  getreide: '🌾 Getreide & Nudeln',
-  hülsenfrüchte: '🫘 Hülsenfrüchte',
-  nüsse: '🥜 Nüsse & Samen',
-  öle_fette: '🫒 Öle & Fette',
-  gewürze: '🧂 Gewürze',
-  säuwarenten: '🫙 Saucen & Würzmittel',
-  getränke: '🥤 Getränke',
-  tiefkühl: '❄️ Tiefkühl',
-  konserven: '🥫 Konserven',
-  sonstiges: '📦 Sonstiges',
-};
+function ExpiryBadge({ date }: { date?: string }) {
+  const COLORS = useThemeColors();
+  if (!date) return null;
 
-const CATEGORY_ORDER: IngredientCategory[] = [
-  'fleisch', 'fisch', 'milchprodukte', 'gemüse', 'obst',
-  'getreide', 'hülsenfrüchte', 'nüsse', 'öle_fette', 'gewürze',
-  'säuwarenten', 'getränke', 'tiefkühl', 'konserven', 'sonstiges',
-];
+  const expiry = new Date(date);
+  const now = new Date();
+  const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-const UNIT_OPTIONS: { value: IngredientUnit; label: string }[] = [
-  { value: 'g', label: 'g' },
-  { value: 'kg', label: 'kg' },
-  { value: 'ml', label: 'ml' },
-  { value: 'l', label: 'l' },
-  { value: 'stück', label: 'Stück' },
-  { value: 'el', label: 'EL' },
-  { value: 'tl', label: 'TL' },
-  { value: 'prise', label: 'Prise' },
-  { value: 'bund', label: 'Bund' },
-  { value: 'dose', label: 'Dose' },
-  { value: 'packung', label: 'Packung' },
-];
+  let color = COLORS.success;
+  let label = `${diffDays} Tage`;
 
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 10);
+  if (diffDays <= 0) {
+    color = COLORS.error;
+    label = 'Abgelaufen';
+  } else if (diffDays <= 3) {
+    color = COLORS.warning;
+    label = 'Bald abgelaufen';
+  }
+
+  return (
+    <View style={{ backgroundColor: `${color}15`, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 }}>
+      <Text style={{ fontSize: 10, fontWeight: '800', color, textTransform: 'uppercase' }}>{label}</Text>
+    </View>
+  );
 }
 
 export default function PantryScreen() {
   const { pantry, addPantryItem, removePantryItem } = useAppStore();
   const COLORS = useThemeColors();
-  const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [unit, setUnit] = useState<IngredientUnit>('stück');
-  const [category, setCategory] = useState<IngredientCategory>('sonstiges');
+  const [permission, requestPermission] = useCameraPermissions();
+  
+  const [newItem, setNewItem] = useState('');
+  const [isScannerVisible, setIsScannerVisible] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
-  const handleAdd = () => {
-    if (!name.trim()) return;
-    const parsedAmount = parseFloat(amount) || 1;
+  const handleAddManual = () => {
+    if (!newItem.trim()) return;
     const item: PantryItem = {
-      id: generateId(),
-      ingredient: name.trim(),
-      amount: parsedAmount,
-      unit,
-      category,
-      addedAt: new Date().toISOString().slice(0, 10),
+      id: Math.random().toString(36).substr(2, 9),
+      ingredient: newItem.trim(),
+      amount: 1,
+      unit: 'stück',
+      category: 'sonstiges',
+      addedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default 7 days
     };
     addPantryItem(item);
+    setNewItem('');
     success();
-    setName('');
-    setAmount('');
-    setUnit('stück');
-    setCategory('sonstiges');
-    setShowAdd(false);
   };
 
-  const handleDelete = (id: string, ingredientName: string) => {
-    heavy();
-    Alert.alert(
-      'Entfernen',
-      `"${ingredientName}" aus dem Vorrat entfernen?`,
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        { text: 'Entfernen', style: 'destructive', onPress: () => removePantryItem(id) },
-      ],
-    );
+  const onBarcodeScanned = async ({ data }: { data: string }) => {
+    if (isScanning) return;
+    setIsScanning(true);
+    impact();
+
+    const product = await lookupBarcode(data);
+    if (product) {
+      const item: PantryItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        ingredient: product.ingredient!,
+        amount: 1,
+        unit: 'stück',
+        category: product.category || 'sonstiges',
+        addedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // Assume 14 days for scanned items
+      };
+      addPantryItem(item);
+      success();
+      setIsScannerVisible(false);
+      Alert.alert('Gefunden!', `${item.ingredient} wurde zum Vorrat hinzugefügt.`);
+    } else {
+      heavy();
+      Alert.alert('Nicht gefunden', 'Produkt wurde nicht in der Datenbank gefunden.');
+    }
+    
+    setTimeout(() => setIsScanning(false), 2000);
   };
 
-  const grouped = CATEGORY_ORDER.reduce((acc, cat) => {
-    const catItems = pantry.filter((i) => i.category === cat);
-    if (catItems.length > 0) acc.push({ category: cat, items: catItems });
-    return acc;
-  }, [] as { category: string; items: PantryItem[] }[]);
+  const openScanner = async () => {
+    const { granted } = await requestPermission();
+    if (granted) {
+      setIsScannerVisible(true);
+      select();
+    } else {
+      Alert.alert('Kamera-Zugriff', 'Wir benötigen Zugriff auf deine Kamera, um Barcodes zu scannen.');
+    }
+  };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: showAdd ? 400 : 100 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
-        <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{pantry.length} Artikel in deinem Vorrat</Text>
-        <Pressable
-          onPress={() => { select(); setShowAdd(!showAdd); }}
-          style={{ backgroundColor: showAdd ? COLORS.border : COLORS.primary, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}
-        >
-          <Text style={{ fontSize: 13, fontWeight: '600', color: showAdd ? COLORS.text : '#FFF' }}>{showAdd ? 'Fertig' : '+ Hinzufügen'}</Text>
-        </Pressable>
-      </View>
+    <>
+      <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 120 }}>
+        <View style={{ marginBottom: SPACING.xl, marginTop: SPACING.md }}>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: COLORS.text }}>Vorrat</Text>
+          <Text style={{ fontSize: 14, color: COLORS.muted, fontWeight: '600' }}>{pantry.length} Artikel im Schrank</Text>
+        </View>
 
-      {showAdd && (
-        <View style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.md }}>Neuer Artikel</Text>
-
+        <View style={{ 
+          backgroundColor: COLORS.card, 
+          borderRadius: RADII.xl, 
+          padding: SPACING.md, 
+          marginBottom: SPACING.xxl, 
+          flexDirection: 'row', 
+          gap: SPACING.sm,
+          ...SHADOWS.soft 
+        }}>
           <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="z.B. Butter, Reis, Hähnchen..."
+            value={newItem}
+            onChangeText={setNewItem}
+            placeholder="z.B. Salz, Öl, Reis..."
             placeholderTextColor={COLORS.muted}
-            style={{ backgroundColor: COLORS.bg, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, fontSize: 14, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, marginBottom: SPACING.sm }}
+            style={{ 
+              flex: 1, 
+              height: 48, 
+              backgroundColor: COLORS.bg, 
+              borderRadius: RADII.lg, 
+              paddingHorizontal: SPACING.md, 
+              color: COLORS.text,
+              fontSize: 16,
+              fontWeight: '600'
+            }}
           />
-
-          <View style={{ flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm }}>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="Menge"
-              placeholderTextColor={COLORS.muted}
-              keyboardType="decimal-pad"
-              style={{ flex: 1, backgroundColor: COLORS.bg, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, fontSize: 14, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border }}
-            />
-            <View style={{ backgroundColor: COLORS.bg, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' }}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACING.xs }}>
-                {UNIT_OPTIONS.map((u) => (
-                  <Pressable
-                    key={u.value}
-                    onPress={() => setUnit(u.value)}
-                    style={{ paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, backgroundColor: unit === u.value ? COLORS.primary : 'transparent', borderRadius: 6 }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: unit === u.value ? '700' : '400', color: unit === u.value ? '#FFF' : COLORS.textSecondary }}>{u.label}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.xs, marginBottom: SPACING.md }}>
-            {CATEGORY_ORDER.map((cat) => (
-              <Pressable
-                key={cat}
-                onPress={() => setCategory(cat)}
-                style={{ paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, backgroundColor: category === cat ? COLORS.primary : COLORS.bg, borderRadius: 6, borderWidth: 1, borderColor: category === cat ? COLORS.primary : COLORS.border }}
-              >
-                <Text style={{ fontSize: 11, fontWeight: category === cat ? '600' : '400', color: category === cat ? '#FFF' : COLORS.textSecondary }}>
-                  {(CATEGORY_LABELS[cat] ?? cat).replace(/^[^\s]+ /, '')}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          <Pressable
-            onPress={handleAdd}
-            disabled={!name.trim()}
-            style={{ backgroundColor: name.trim() ? COLORS.primary : COLORS.border, borderRadius: 8, paddingVertical: SPACING.md, alignItems: 'center' }}
+          <Pressable 
+            onPress={handleAddManual} 
+            style={({ pressed }) => ({ 
+              backgroundColor: COLORS.primaryLight, 
+              borderRadius: RADII.lg, 
+              width: 48, 
+              height: 48, 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              opacity: pressed ? 0.8 : 1,
+              transform: [{ scale: pressed ? 0.95 : 1 }]
+            })}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: name.trim() ? '#FFF' : COLORS.muted }}>Hinzufügen</Text>
+            <Text style={{ fontSize: 24, color: COLORS.primary, fontWeight: '300' }}>+</Text>
+          </Pressable>
+          <Pressable 
+            onPress={openScanner} 
+            style={({ pressed }) => ({ 
+              backgroundColor: COLORS.primary, 
+              borderRadius: RADII.lg, 
+              width: 48, 
+              height: 48, 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              ...SHADOWS.soft,
+              shadowColor: COLORS.primary,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.95 : 1 }]
+            })}
+          >
+            <Text style={{ fontSize: 20 }}>📷</Text>
           </Pressable>
         </View>
-      )}
 
-      {pantry.length === 0 && !showAdd && (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: SPACING.xxl }}>
-          <Text style={{ fontSize: 48, marginBottom: SPACING.lg }}>🏠</Text>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm }}>Vorrat ist leer</Text>
-          <Text style={{ fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20 }}>
-            Füge Artikel hinzu, die du bereits zu Hause hast.{'\n'}Diese werden von der Einkaufsliste abgezogen.
-          </Text>
-        </View>
-      )}
-
-      {grouped.map(({ category, items }) => (
-        <View key={category} style={{ marginBottom: SPACING.md }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.xs }}>
-            {CATEGORY_LABELS[category] ?? category}
-          </Text>
-          <View style={{ backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' }}>
-            {items.map((item) => {
-              const unitLabel: Record<string, string> = {
-                'g': 'g', 'kg': 'kg', 'ml': 'ml', 'l': 'l',
-                'stück': '', 'el': 'EL', 'tl': 'TL', 'prise': 'Prise',
-                'bund': 'Bund', 'dose': 'Dose', 'packung': 'Packung',
-              };
-              return (
-                <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, color: COLORS.text }}>{item.ingredient}</Text>
-                    <Text style={{ fontSize: 11, color: COLORS.muted }}>Hinzugefügt: {item.addedAt}</Text>
+        <View style={{ gap: SPACING.md }}>
+          {pantry.length === 0 ? (
+            <View style={{ padding: SPACING.xxl, alignItems: 'center' }}>
+              <Text style={{ fontSize: 16, color: COLORS.muted, textAlign: 'center', lineHeight: 24 }}>
+                Dein Vorrat ist leer. Scanne Produkte oder füge Basis-Zutaten manuell hinzu.
+              </Text>
+            </View>
+          ) : (
+            pantry.sort((a, b) => a.ingredient.localeCompare(b.ingredient)).map((item) => (
+              <View 
+                key={item.id} 
+                style={{ 
+                  flexDirection: 'row', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  backgroundColor: COLORS.card, 
+                  padding: SPACING.lg, 
+                  borderRadius: RADII.lg, 
+                  ...SHADOWS.soft 
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>{item.ingredient}</Text>
+                    <ExpiryBadge date={item.expiresAt} />
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-                    <Text style={{ fontSize: 14, color: COLORS.textSecondary }}>{Math.round(item.amount * 10) / 10} {unitLabel[item.unit] ?? item.unit}</Text>
-                    <Pressable onPress={() => handleDelete(item.id, item.ingredient)} style={{ backgroundColor: COLORS.error + '15', borderRadius: 6, paddingHorizontal: SPACING.sm, paddingVertical: 2 }}>
-                      <Text style={{ fontSize: 12, color: COLORS.error, fontWeight: '600' }}>✕</Text>
-                    </Pressable>
-                  </View>
+                  <Text style={{ fontSize: 12, color: COLORS.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.category}</Text>
                 </View>
-              );
-            })}
+                <Pressable 
+                  onPress={() => { tap(); removePantryItem(item.id); }} 
+                  style={({ pressed }) => ({ 
+                    padding: SPACING.sm, 
+                    backgroundColor: COLORS.primaryLight, 
+                    borderRadius: RADII.sm,
+                    opacity: pressed ? 0.7 : 1
+                  })}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: COLORS.primary }}>LÖSCHEN</Text>
+                </Pressable>
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+
+      <Modal visible={isScannerVisible} animationType="slide" presentationStyle="fullScreen">
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <CameraView
+            style={StyleSheet.absoluteFill}
+            onBarcodeScanned={onBarcodeScanned}
+            barcodeScannerSettings={{
+              barcodeTypes: ['ean13', 'ean8'],
+            }}
+          />
+          <View style={{ position: 'absolute', top: 60, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800' }}>Barcode scannen</Text>
+            <Pressable onPress={() => setIsScannerVisible(false)} style={{ backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20 }}>
+              <Text style={{ color: '#FFF', fontWeight: '700' }}>Abbrechen</Text>
+            </Pressable>
+          </View>
+          <View style={{ position: 'absolute', bottom: 100, left: 40, right: 40, alignItems: 'center' }}>
+            <View style={{ width: 250, height: 250, borderWidth: 2, borderColor: COLORS.primary, borderRadius: 24, backgroundColor: 'transparent' }} />
+            <Text style={{ color: '#FFF', marginTop: 20, textAlign: 'center', opacity: 0.8 }}>Halte den Barcode in den Rahmen</Text>
           </View>
         </View>
-      ))}
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
