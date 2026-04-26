@@ -2,26 +2,29 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAppStore } from '../../lib/store';
-import { generateMealPlan, findAlternatives, swapMeal } from '../../lib/meals/generator';
+import { findAlternatives, swapMeal, generateMealPlan } from '../../lib/meals/generator';
 import { MacroRingsRow } from '../../lib/components';
-import { useThemeColors, SPACING } from '../../lib/theme';
+import { useThemeColors, SPACING, SHADOWS, RADII } from '../../lib/theme';
 import { tap, success, select } from '../../lib/haptics';
 import type { DayPlan, MealSlot, Recipe } from '../../lib/types';
 
-const DAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const DAY_NAMES = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
 const MEAL_LABELS: Record<string, string> = {
-  breakfast: 'Frühstück',
-  lunch: 'Mittag',
-  dinner: 'Abend',
-  snack: 'Snack',
+  breakfast: 'FRÜHSTÜCK',
+  lunch: 'MITTAG',
+  dinner: 'ABEND',
+  snack: 'SNACK',
 };
 
 function MacroPill({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) {
   const COLORS = useThemeColors();
   return (
-    <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={{ fontSize: 10, color: COLORS.textSecondary, marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 15, fontWeight: '700', color }}>{Math.round(value)}<Text style={{ fontSize: 10, fontWeight: '400', color: COLORS.textSecondary }}> {unit}</Text></Text>
+    <View style={{ alignItems: 'flex-start', flex: 1 }}>
+      <Text style={{ fontSize: 9, fontWeight: '700', color: COLORS.muted, letterSpacing: 0.5, textTransform: 'uppercase' }}>{label}</Text>
+      <Text style={{ fontSize: 16, fontWeight: '800', color }}>
+        {Math.round(value)}
+        <Text style={{ fontSize: 10, fontWeight: '500', color: COLORS.textSecondary }}> {unit}</Text>
+      </Text>
     </View>
   );
 }
@@ -29,20 +32,33 @@ function MacroPill({ label, value, unit, color }: { label: string; value: number
 function MealCard({ slot, onPress, onLongPress }: { slot: MealSlot; onPress: () => void; onLongPress: () => void }) {
   const COLORS = useThemeColors();
   const dietEmoji: Record<string, string> = { omnivore: '🥩', vegetarian: '🥗', vegan: '🌱' };
-  const cookTimeColor = slot.recipe.totalTime <= 15 ? '#2E7D32' : slot.recipe.totalTime <= 30 ? '#FF6F00' : '#D32F2F';
+  const cookTimeColor = slot.recipe.totalTime <= 15 ? COLORS.success : slot.recipe.totalTime <= 30 ? COLORS.warning : COLORS.error;
+  
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => ({ backgroundColor: pressed ? COLORS.primaryLight : COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, transform: [{ scale: pressed ? 0.98 : 1 }], opacity: pressed ? 0.9 : 1 })}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs }}>
-        <View style={{ backgroundColor: COLORS.primaryLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.primary }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
+    <Pressable 
+      onPress={onPress} 
+      onLongPress={onLongPress} 
+      style={({ pressed }) => ({ 
+        backgroundColor: COLORS.card, 
+        borderRadius: RADII.xl, 
+        padding: SPACING.lg, 
+        marginBottom: SPACING.md, 
+        ...SHADOWS.soft,
+        transform: [{ scale: pressed ? 0.98 : 1 }], 
+        opacity: pressed ? 0.9 : 1 
+      })}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
+        <View style={{ backgroundColor: COLORS.primaryLight, borderRadius: RADII.sm, paddingHorizontal: 10, paddingVertical: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: '800', color: COLORS.primary, letterSpacing: 1 }}>{MEAL_LABELS[slot.type] ?? slot.type}</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontSize: 12, color: cookTimeColor, fontWeight: '600' }}>⏱ {slot.recipe.totalTime}min</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 12, color: cookTimeColor, fontWeight: '700' }}>⏱ {slot.recipe.totalTime}m</Text>
           <Text style={{ fontSize: 14 }}>{dietEmoji[slot.recipe.diet] ?? ''}</Text>
         </View>
       </View>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.sm }}>{slot.recipe.titleDe}</Text>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.lg, lineHeight: 22 }}>{slot.recipe.titleDe}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: COLORS.bg, paddingTop: SPACING.md }}>
         <MacroPill label="Kcal" value={slot.scaledMacros.calories} unit="kcal" color={COLORS.text} />
         <MacroPill label="P" value={slot.scaledMacros.protein} unit="g" color={COLORS.protein} />
         <MacroPill label="K" value={slot.scaledMacros.carbs} unit="g" color={COLORS.carbs} />
@@ -52,75 +68,29 @@ function MealCard({ slot, onPress, onLongPress }: { slot: MealSlot; onPress: () 
   );
 }
 
-function SwapModal({ recipe, alternatives, onSelect, onClose }: { recipe: Recipe; alternatives: Recipe[]; onSelect: (r: Recipe) => void; onClose: () => void }) {
-  const COLORS = useThemeColors();
-  return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: COLORS.bg, paddingTop: 60 }}>
-        <View style={{ paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.text }}>Tauschen</Text>
-            <Pressable onPress={onClose} style={{ backgroundColor: COLORS.border, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}>
-              <Text style={{ fontSize: 14, color: COLORS.text }}>Schließen</Text>
-            </Pressable>
-          </View>
-          <Text style={{ fontSize: 14, color: COLORS.textSecondary, marginBottom: SPACING.md }}>
-            Ersetze <Text style={{ fontWeight: '600', color: COLORS.text }}>{recipe.titleDe}</Text> mit einer Alternative:
-          </Text>
-        </View>
-        <ScrollView contentContainerStyle={{ padding: SPACING.lg }}>
-          {alternatives.map((alt) => {
-            const dietEmoji: Record<string, string> = { omnivore: '🥩', vegetarian: '🥗', vegan: '🌱' };
-            return (
-              <Pressable
-                key={alt.id}
-                onPress={() => { tap(); onSelect(alt); }}
-                style={({ pressed }) => ({ backgroundColor: pressed ? COLORS.primaryLight : COLORS.card, borderRadius: 12, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, transform: [{ scale: pressed ? 0.98 : 1 }], opacity: pressed ? 0.9 : 1 })}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text }}>{alt.titleDe}</Text>
-                    <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{MEAL_LABELS[alt.mealType[0]] ?? alt.mealType[0]} · ⏱ {alt.totalTime}min</Text>
-                  </View>
-                  <Text style={{ fontSize: 14 }}>{dietEmoji[alt.diet] ?? ''}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.xs }}>
-                  <Text style={{ fontSize: 12, color: COLORS.text }}>{Math.round(alt.macros.calories)} kcal</Text>
-                  <Text style={{ fontSize: 12, color: COLORS.protein }}>P {Math.round(alt.macros.protein)}g</Text>
-                  <Text style={{ fontSize: 12, color: COLORS.carbs }}>K {Math.round(alt.macros.carbs)}g</Text>
-                  <Text style={{ fontSize: 12, color: COLORS.fat }}>F {Math.round(alt.macros.fat)}g</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-          {alternatives.length === 0 && (
-            <Text style={{ fontSize: 14, color: COLORS.muted, textAlign: 'center', padding: SPACING.xl }}>
-              Keine Alternativen gefunden für diese Makros und Vorgaben.
-            </Text>
-          )}
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-}
-
 function DaySection({ day, index, onMealPress, onMealLongPress }: { day: DayPlan; index: number; onMealPress: (recipeId: string) => void; onMealLongPress: (dayIndex: number, mealIndex: number) => void }) {
   const COLORS = useThemeColors();
   return (
-    <View style={{ marginBottom: SPACING.lg }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm, paddingHorizontal: SPACING.xs }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-          <View style={{ backgroundColor: COLORS.primary, borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>{DAY_NAMES[index] ?? '?'}</Text>
+    <View style={{ marginBottom: SPACING.xl }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md, paddingHorizontal: SPACING.xs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
+          <View style={{ backgroundColor: COLORS.primary, borderRadius: RADII.md, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', ...SHADOWS.soft, shadowColor: COLORS.primary }}>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFF' }}>{DAY_NAMES[index] ?? '?'}</Text>
           </View>
-          <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>{day.date}</Text>
+          <View>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{day.date}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textSecondary }}>Tagesziel</Text>
+          </View>
         </View>
-        <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
-          {Math.round(day.totalMacros.calories)} kcal · P{Math.round(day.totalMacros.protein)} · K{Math.round(day.totalMacros.carbs)} · F{Math.round(day.totalMacros.fat)}
-        </Text>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.text }}>{Math.round(day.totalMacros.calories)} <Text style={{ fontSize: 10, color: COLORS.muted }}>kcal</Text></Text>
+          <Text style={{ fontSize: 11, color: COLORS.muted }}>P {Math.round(day.totalMacros.protein)} · K {Math.round(day.totalMacros.carbs)} · F {Math.round(day.totalMacros.fat)}</Text>
+        </View>
       </View>
       {day.meals.length === 0 ? (
-        <Text style={{ fontSize: 14, color: COLORS.muted, textAlign: 'center', padding: SPACING.lg }}>Keine Mahlzeiten</Text>
+        <View style={{ padding: SPACING.xl, alignItems: 'center', backgroundColor: COLORS.card, borderRadius: RADII.xl, ...SHADOWS.soft }}>
+          <Text style={{ fontSize: 14, color: COLORS.muted, fontStyle: 'italic' }}>Keine Mahlzeiten geplant</Text>
+        </View>
       ) : (
         day.meals.map((slot, mi) => (
           <MealCard
@@ -132,6 +102,48 @@ function DaySection({ day, index, onMealPress, onMealLongPress }: { day: DayPlan
         ))
       )}
     </View>
+  );
+}
+
+function SwapModal({ recipe, alternatives, onSelect, onClose }: { recipe: Recipe; alternatives: Recipe[]; onSelect: (r: Recipe) => void; onClose: () => void }) {
+  const COLORS = useThemeColors();
+  return (
+    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        <View style={{ padding: SPACING.lg, borderBottomWidth: 1, borderBottomColor: COLORS.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.text }}>Alternativen</Text>
+          <Pressable onPress={onClose} style={{ padding: SPACING.sm }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.primary }}>Fertig</Text>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: SPACING.lg }}>
+          <Text style={{ fontSize: 14, color: COLORS.textSecondary, marginBottom: SPACING.lg }}>
+            Ersetze <Text style={{ fontWeight: '800', color: COLORS.text }}>{recipe.titleDe}</Text> mit:
+          </Text>
+          {alternatives.map((alt) => (
+            <Pressable
+              key={alt.id}
+              onPress={() => { tap(); onSelect(alt); }}
+              style={({ pressed }) => ({ 
+                backgroundColor: COLORS.card, 
+                borderRadius: RADII.lg, 
+                padding: SPACING.lg, 
+                marginBottom: SPACING.md, 
+                ...SHADOWS.soft,
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }]
+              })}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.text, flex: 1 }}>{alt.titleDe}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.primary }}>⏱ {alt.totalTime}m</Text>
+              </View>
+              <Text style={{ fontSize: 12, color: COLORS.muted, marginBottom: SPACING.md }}>{Math.round(alt.macros.calories)} kcal · P {Math.round(alt.macros.protein)}g · K {Math.round(alt.macros.carbs)}g · F {Math.round(alt.macros.fat)}g</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
 
@@ -157,25 +169,34 @@ export default function HomeScreen() {
     setSwapInfo({ dayIndex, mealIndex });
   };
 
-  if (!currentPlan || !swapInfo) {
-    const showSwapModal = false;
-    if (!currentPlan) {
-      return (
-        <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl }}>
-          <Text style={{ fontSize: 48, marginBottom: SPACING.lg }}>🍽️</Text>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm }}>Kein Plan vorhanden</Text>
-          <Text style={{ fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: SPACING.xl, lineHeight: 20 }}>
-            Stelle deine Makros ein und generiere deinen Wochenplan.
-          </Text>
-          <Pressable onPress={handleGenerate} style={({ pressed }) => ({ backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, transform: [{ scale: pressed ? 0.97 : 1 }], opacity: pressed ? 0.9 : 1 })}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>Plan erstellen</Text>
-          </Pressable>
+  if (!currentPlan) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl }}>
+        <View style={{ width: 120, height: 120, backgroundColor: COLORS.primaryLight, borderRadius: 60, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.xl, ...SHADOWS.soft, shadowColor: COLORS.primary }}>
+          <Text style={{ fontSize: 48 }}>🍽️</Text>
         </View>
-      );
-    }
+        <Text style={{ fontSize: 26, fontWeight: '800', color: COLORS.text, marginBottom: SPACING.md, textAlign: 'center' }}>Dein Wochenplan</Text>
+        <Text style={{ fontSize: 16, color: COLORS.textSecondary, textAlign: 'center', marginBottom: SPACING.xxl, lineHeight: 24, paddingHorizontal: SPACING.xl }}>
+          Wir erstellen dir einen personalisierten Plan basierend auf deinen Zielen.
+        </Text>
+        <Pressable 
+          onPress={handleGenerate} 
+          style={({ pressed }) => ({ 
+            backgroundColor: COLORS.primary, 
+            borderRadius: RADII.xl, 
+            paddingVertical: SPACING.lg, 
+            paddingHorizontal: 48, 
+            ...SHADOWS.medium,
+            shadowColor: COLORS.primary,
+            transform: [{ scale: pressed ? 0.96 : 1 }], 
+            opacity: pressed ? 0.9 : 1 
+          })}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '800', color: '#FFF' }}>Plan generieren</Text>
+        </Pressable>
+      </View>
+    );
   }
-
-  if (!currentPlan) return null;
 
   const weekTotals = currentPlan.days.reduce(
     (acc, d) => ({
@@ -213,15 +234,37 @@ export default function HomeScreen() {
 
   return (
     <>
-      <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 100 }}>
-        <View style={{ marginBottom: SPACING.lg }}>
-          <Pressable onPress={handleGenerate} style={{ backgroundColor: COLORS.primaryLight, borderRadius: 8, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, alignSelf: 'flex-end' }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.primary }}>🔄 Neu</Text>
+      <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 120 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xl, marginTop: SPACING.md }}>
+          <View>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: COLORS.text }}>Wochenplan</Text>
+            <Text style={{ fontSize: 14, color: COLORS.muted, fontWeight: '600' }}>Mindful Meal Prep</Text>
+          </View>
+          <Pressable 
+            onPress={handleGenerate} 
+            style={({ pressed }) => ({ 
+              backgroundColor: COLORS.card, 
+              borderRadius: RADII.md, 
+              paddingHorizontal: SPACING.md, 
+              paddingVertical: SPACING.sm, 
+              ...SHADOWS.soft,
+              transform: [{ scale: pressed ? 0.95 : 1 }]
+            })}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.primary }}>REFRESH</Text>
           </Pressable>
         </View>
 
-        <View style={{ backgroundColor: COLORS.card, borderRadius: 12, paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border }}>
-          <Text style={{ fontSize: 11, color: COLORS.textSecondary, marginBottom: SPACING.sm, textAlign: 'center' }}>Ø pro Tag</Text>
+        <View style={{ 
+          backgroundColor: COLORS.card, 
+          borderRadius: RADII.xl, 
+          paddingVertical: SPACING.xl, 
+          paddingHorizontal: SPACING.md, 
+          marginBottom: SPACING.xxl, 
+          ...SHADOWS.medium,
+          shadowOpacity: 0.05
+        }}>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: COLORS.muted, marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: 1 }}>DURCHSCHNITT / TAG</Text>
           <MacroRingsRow
             calories={avgCal}
             protein={avgP}
